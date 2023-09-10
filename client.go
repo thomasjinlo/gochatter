@@ -7,11 +7,19 @@ import (
 	"net"
 	"os"
 	"os/signal"
+    "crypto/tls"
 	"syscall"
 )
 
+const (
+    SERVER_ADDR string = "71.212.159.238:8443"
+)
+
 func main() {
-    conn, err := net.Dial("tcp4", "127.0.0.1:5000")
+    config := &tls.Config{
+        InsecureSkipVerify: true, // Insecure for self-signed certificates
+    }
+    conn, err := tls.Dial("tcp", SERVER_ADDR, config)
     if err != nil {
         log.Fatal(err)
     }

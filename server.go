@@ -6,23 +6,69 @@ import (
 	"net"
 	"os"
 	"os/signal"
+    "crypto/tls"
 	"syscall"
+    "path/filepath"
+    "strings"
 )
 
 const (
-    CONN_HOST string = "127.0.0.1"
-    CONN_PORT string = "5000"
+    CONN_HOST string = "192.168.0.14"
+    CONN_PORT string = "8443"
     CONN_TYPE string = "tcp4"
 )
+
+func getPrivateAddr() string {
+    interfaces, err := net.Interfaces()
+    if err != nil {
+        fmt.Println("Error:", err)
+        os.Exit(1)
+    }
+
+    // Iterate through the network interfaces
+    for _, iface := range interfaces {
+        // Filter out loopback and non-up interfaces
+        if strings.HasPrefix(iface.Name, "lo") || (iface.Flags&net.FlagUp == 0) {
+            continue
+        }
+
+        // Get the addresses associated with the interface
+        addrs, err := iface.Addrs()
+        if err != nil {
+            fmt.Println("Error:", err)
+            continue
+        }
+
+        for _, addr := range addrs {
+            if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+                if ipnet.IP.To4() != nil {
+                    return ipnet.IP.String()
+                }
+            }
+        }
+    }
+    return ""
+}
 
 type CloseChannel chan struct{}
 
 func main() {
-    ADDR := CONN_HOST + ":" + CONN_PORT
-    listener, err := net.Listen(CONN_TYPE, ADDR)
+    currentDir, _ := os.Getwd()
+    certFile := filepath.Join(currentDir, ".ssh", "gochatter.crt")
+    keyFile := filepath.Join(currentDir, ".ssh", "gochatter.key")
+    cert, err := tls.LoadX509KeyPair(certFile, keyFile)
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("Error loading certificates: %v", err)
     }
+
+    config := tls.Config{Certificates: []tls.Certificate{cert}}
+    ADDR := getPrivateAddr() + ":" + CONN_PORT
+    fmt.Println("Listening on port:", ADDR)
+    listener, err := tls.Listen(CONN_TYPE, ADDR, &config)
+    if err != nil {
+        log.Fatalf("Error creating listener: %v", err)
+    }
+
     defer listener.Close()
     fmt.Println("Waiting for incoming connections...")
 
