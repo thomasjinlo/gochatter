@@ -1,14 +1,15 @@
 package client
 
 import (
-	"bufio"
-	"fmt"
-	"log"
-	"net"
-	"os"
-	"os/signal"
+    "bufio"
+    "bytes"
     "crypto/tls"
-	"syscall"
+    "fmt"
+    "log"
+    "net"
+    "os"
+    "os/signal"
+    "syscall"
 )
 
 const (
@@ -48,13 +49,38 @@ func (c *Client) Connect() {
     c.conn = conn
 
     go handleInterrupt(closeCh)
-    go handleServerShutdown(conn, closeCh)
+    go handleReads(conn, closeCh)
     go handleWrites(conn)
 
     fmt.Println("Successfully connected to Server!")
 
     <-closeCh
     conn.Close()
+}
+
+func handleReads(conn net.Conn, closeCh CloseChannel) {
+    for {
+        buf := make([]byte, 2048)
+        n, err := conn.Read(buf)
+        messageBytes := bytes.TrimRight(buf[:n], "\n")
+
+        if err != nil {
+            fmt.Println("Server closed the connection:", err)
+            // check for channel closure. Channel will already be closed when
+            // forcefully interrupted.
+            select {
+            case _, ok := <-closeCh:
+                if ok {
+                    close(closeCh)
+                }
+            default:
+                close(closeCh)
+            }
+            return
+        }
+
+        fmt.Println("server:", string(messageBytes))
+    }
 }
 
 func handleWrites(conn net.Conn) {

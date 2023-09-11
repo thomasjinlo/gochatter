@@ -1,15 +1,16 @@
 package server
 
 import (
+    "bytes"
+    "crypto/tls"
     "fmt"
     "log"
     "net"
     "os"
     "os/signal"
-    "crypto/tls"
-    "syscall"
     "path/filepath"
     "strings"
+    "syscall"
 )
 
 const (
@@ -24,6 +25,7 @@ type Server struct {
     host string
     port string
     protocol string
+    connections []net.Conn
 }
 
 func NewServer(host, port, protocol string) *Server {
@@ -31,6 +33,7 @@ func NewServer(host, port, protocol string) *Server {
         host: host,
         port: port,
         protocol: protocol,
+        connections: []net.Conn{},
     }
 }
 
@@ -57,7 +60,7 @@ func (s *Server) Listen() {
     closeCh := make(CloseChannel)
     connCh := make(chan net.Conn, 4)
     go handleInterrupt(closeCh, connCh)
-    go acceptConnections(listener, connCh)
+    go acceptConnections(listener, connCh, s)
 
     <-closeCh
 }
@@ -76,18 +79,19 @@ func handleInterrupt(closeCh CloseChannel, connCh chan net.Conn) {
     close(closeCh)
 }
 
-func acceptConnections(listener net.Listener, connCh chan net.Conn) {
+func acceptConnections(listener net.Listener, connCh chan net.Conn, s *Server) {
     for {
         conn, err := listener.Accept()
         if err != nil {
             log.Fatal(err)
         }
         connCh <- conn
-        go handleConnection(conn)
+        s.connections = append(s.connections, conn)
+        go handleConnection(conn, s)
     }
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, s *Server) {
     fmt.Println(conn.RemoteAddr().String(), "connection created")
 
     for {
@@ -99,39 +103,36 @@ func handleConnection(conn net.Conn) {
             fmt.Println(conn.RemoteAddr().String(), "connection closed")
             return
         }
-        message := buf[:n]
-        fmt.Println(string(message))
-    }
-}
 
-func getPrivateAddr() string {
-    interfaces, err := net.Interfaces()
-    if err != nil {
-        fmt.Println("Error:", err)
-        os.Exit(1)
-    }
+        messageBytes := bytes.TrimRight(buf[:n], "\n")
 
-    // Iterate through the network interfaces
-    for _, iface := range interfaces {
-        // Filter out loopback and non-up interfaces
-        if strings.HasPrefix(iface.Name, "lo") || (iface.Flags&net.FlagUp == 0) {
-            continue
-        }
+        if messageBytes[0] == '/' {
+            commands := strings.Split(string(messageBytes[1:]), " ")
+            fmt.Println(commands)
+            command := commands[0]
+            switch command {
+            case "ls":
+                fmt.Println("Listing connections...")
+                for _, connection := range s.connections {
+                    targetConnIp := connection.RemoteAddr().String()
+                    sourceConnIp := conn.RemoteAddr().String()
 
-        // Get the addresses associated with the interface
-        addrs, err := iface.Addrs()
-        if err != nil {
-            fmt.Println("Error:", err)
-            continue
-        }
+                    if targetConnIp == sourceConnIp {
+                        continue
+                    }
 
-        for _, addr := range addrs {
-            if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-                if ipnet.IP.To4() != nil {
-                    return ipnet.IP.String()
+                    _, err := conn.Write([]byte(targetConnIp))
+                    if err != nil {
+                        fmt.Println("Error writing", err)
+                    }
+                    fmt.Println(targetConnIp)
                 }
+            case "connect":
+                //otherConnIp := commands[1:]
+                //conn.Write(commands)
             }
+        } else {
+            fmt.Println(conn.RemoteAddr().String(), string(messageBytes))
         }
     }
-    return ""
 }
