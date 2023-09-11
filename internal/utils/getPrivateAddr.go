@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
     "fmt"
@@ -7,8 +7,7 @@ import (
     "strings"
 )
 
-func main() {
-    // Get a list of network interfaces
+func GetPrivateIp() string {
     interfaces, err := net.Interfaces()
     if err != nil {
         fmt.Println("Error:", err)
@@ -29,13 +28,13 @@ func main() {
             continue
         }
 
-        // Iterate through the addresses and find an IPv4 address
         for _, addr := range addrs {
             if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
                 if ipnet.IP.To4() != nil {
-                    fmt.Println("Private IP Address:", ipnet.IP.String())
+                    return ipnet.IP.String()
                 }
             }
         }
     }
+    return ""
 }

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -13,46 +13,28 @@ import (
 )
 
 const (
-    CONN_HOST string = "192.168.0.14"
-    CONN_PORT string = "8443"
-    CONN_TYPE string = "tcp4"
+    TCP  = "tcp"
+    TCP4 = "tcp4"
+    TCP6 = "tcp6"
 )
-
-func getPrivateAddr() string {
-    interfaces, err := net.Interfaces()
-    if err != nil {
-        fmt.Println("Error:", err)
-        os.Exit(1)
-    }
-
-    // Iterate through the network interfaces
-    for _, iface := range interfaces {
-        // Filter out loopback and non-up interfaces
-        if strings.HasPrefix(iface.Name, "lo") || (iface.Flags&net.FlagUp == 0) {
-            continue
-        }
-
-        // Get the addresses associated with the interface
-        addrs, err := iface.Addrs()
-        if err != nil {
-            fmt.Println("Error:", err)
-            continue
-        }
-
-        for _, addr := range addrs {
-            if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-                if ipnet.IP.To4() != nil {
-                    return ipnet.IP.String()
-                }
-            }
-        }
-    }
-    return ""
-}
 
 type CloseChannel chan struct{}
 
-func main() {
+type Server struct {
+    host string
+    port string
+    protocol string
+}
+
+func NewServer(host, port, protocol string) *Server {
+    return &Server{
+        host: host,
+        port: port,
+        protocol: protocol,
+    }
+}
+
+func (s *Server) Listen() {
     currentDir, _ := os.Getwd()
     certFile := filepath.Join(currentDir, ".ssh", "gochatter.crt")
     keyFile := filepath.Join(currentDir, ".ssh", "gochatter.key")
@@ -62,9 +44,9 @@ func main() {
     }
 
     config := tls.Config{Certificates: []tls.Certificate{cert}}
-    ADDR := getPrivateAddr() + ":" + CONN_PORT
-    fmt.Println("Listening on port:", ADDR)
-    listener, err := tls.Listen(CONN_TYPE, ADDR, &config)
+    address := s.host + ":" + s.port
+    fmt.Println("Listening on port:", address)
+    listener, err := tls.Listen(s.protocol, address, &config)
     if err != nil {
         log.Fatalf("Error creating listener: %v", err)
     }
@@ -106,17 +88,50 @@ func acceptConnections(listener net.Listener, connCh chan net.Conn) {
 }
 
 func handleConnection(conn net.Conn) {
-    fmt.Println("Accepted connection:", conn.RemoteAddr().String())
+    fmt.Println(conn.RemoteAddr().String(), "connection created")
 
     for {
         buf := make([]byte, 2048)
         n, err := conn.Read(buf)
         if err != nil {
-            fmt.Println("Closing connection to:", conn.RemoteAddr().String())
+            fmt.Println(conn.RemoteAddr().String(), "closing connection")
             conn.Close()
+            fmt.Println(conn.RemoteAddr().String(), "connection closed")
             return
         }
         message := buf[:n]
         fmt.Println(string(message))
     }
+}
+
+func getPrivateAddr() string {
+    interfaces, err := net.Interfaces()
+    if err != nil {
+        fmt.Println("Error:", err)
+        os.Exit(1)
+    }
+
+    // Iterate through the network interfaces
+    for _, iface := range interfaces {
+        // Filter out loopback and non-up interfaces
+        if strings.HasPrefix(iface.Name, "lo") || (iface.Flags&net.FlagUp == 0) {
+            continue
+        }
+
+        // Get the addresses associated with the interface
+        addrs, err := iface.Addrs()
+        if err != nil {
+            fmt.Println("Error:", err)
+            continue
+        }
+
+        for _, addr := range addrs {
+            if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+                if ipnet.IP.To4() != nil {
+                    return ipnet.IP.String()
+                }
+            }
+        }
+    }
+    return ""
 }
