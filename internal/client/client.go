@@ -4,11 +4,13 @@ import (
     "bufio"
     "bytes"
     "crypto/tls"
+    "crypto/x509"
     "fmt"
     "log"
     "net"
     "os"
     "os/signal"
+    "path/filepath"
     "syscall"
 )
 
@@ -36,10 +38,26 @@ func NewClient(host, port, protocol string) *Client {
 }
 
 func (c *Client) Connect() {
-    config := &tls.Config{
-        InsecureSkipVerify: true,
+    currentDir, _ := os.Getwd()
+    certFile := filepath.Join(currentDir, ".ssh", "gochatterclient.crt")
+    cert, err := os.ReadFile(certFile)
+    if err != nil {
+        log.Fatal(err)
     }
-    address := c.host + ":" + c.port
+
+    // Create a certificate pool and add the CA certificate to it.
+    certPool := x509.NewCertPool()
+    if !certPool.AppendCertsFromPEM(cert) {
+        log.Fatal("Failed to append CA certificate to the pool.")
+    }
+
+    config := &tls.Config{
+        RootCAs: certPool, // Set the CA certificate pool for server verification.
+    }
+    //config := &tls.Config{
+    //    InsecureSkipVerify: true,
+    //}
+    address := "gochatter.app" + ":" + c.port
     conn, err := tls.Dial(c.protocol, address, config)
     if err != nil {
         log.Fatal(err)
