@@ -1,37 +1,63 @@
 package main
 
 import (
-	"fmt"
-    "os"
+	"os"
+    "log"
+    "net/http"
+    "path/filepath"
+    "crypto/tls"
+    "crypto/x509"
 
-    "github.com/thomasjinlo/gochatter/internal/server"
-    "github.com/thomasjinlo/gochatter/internal/client"
-    "github.com/thomasjinlo/gochatter/internal/utils"
-)
+    "github.com/gorilla/websocket"
 
-const (
-    CONN_HOST string = "192.168.0.14"
-    CONN_PORT string = "8443"
-    CONN_TYPE string = "tcp4"
+	"github.com/thomasjinlo/gochatter/internal/network"
 )
 
 func main() {
+    currDir, _ := os.Getwd()
+    closeCh := make(chan bool)
     switch os.Args[1] {
     case "server":
-        host := utils.GetPrivateIp()
-        port := "8443"
-        protocol := server.TCP4
+        networkHandler := network.NewNetworkServer()
+        certFile := filepath.Join(currDir, ".ssh", "cfcert.pem")
+        keyFile := filepath.Join(currDir, ".ssh", "cfkey.pem")
 
-        gochatter := server.NewServer(host, port, protocol)
-        gochatter.Listen()
+        err := http.ListenAndServeTLS(":443", certFile, keyFile, http.HandlerFunc(networkHandler))
+        if err != nil {
+            log.Fatal("HTTP Server error:", err)
+        }
     case "client":
-        host := "192.168.0.14"
-        port := "8443"
-        protocol := server.TCP4
+        certFile := filepath.Join(currDir, ".ssh", "cfclient.pem")
+        cert, _ := os.ReadFile(certFile)
+        certPool := x509.NewCertPool()
+        certPool.AppendCertsFromPEM(cert)
+        tlsConfig := &tls.Config{
+            RootCAs: certPool,
+        }
+        dialer := websocket.Dialer{
+            TLSClientConfig: tlsConfig,
+        }
+        conn, _, _ := dialer.Dial("wss://gochatter.app:443", nil)
+        defer conn.Close()
+        go func() {
+            for {
+                _, payload, _ := conn.ReadMessage()
+                log.Print("RECEIVED FROM HUB", string(payload))
+            }
+        }()
 
-        client := client.NewClient(host, port, protocol)
-        client.Connect()
+        go func() {
+            for {
+                buf := make([]byte, 1024)
+                n, _ := os.Stdin.Read(buf)
+                err := conn.WriteMessage(websocket.BinaryMessage, buf[:n])
+                if err != nil {
+                    log.Fatal("ERROR WRITING TO NODE", err)
+                }
+            }
+        }()
+        <-closeCh
     default:
-        fmt.Println("In default")
+        log.Print("In default")
     }
 }
