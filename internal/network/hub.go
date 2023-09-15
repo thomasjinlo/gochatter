@@ -5,7 +5,7 @@ import (
 )
 
 type Hub struct {
-    broadcastCh chan []byte
+    broadcastCh chan NodeMessage
     registerCh chan *Node
 
     nodes map[*Node]bool
@@ -13,7 +13,7 @@ type Hub struct {
 
 func NewHub() (hub *Hub) {
     hub = &Hub{
-        broadcastCh: make(chan []byte),
+        broadcastCh: make(chan NodeMessage),
         registerCh: make(chan *Node),
         nodes: make(map[*Node]bool),
     }
@@ -26,11 +26,16 @@ func (h *Hub) handleMessages() {
     for {
         select {
         case node := <-h.registerCh:
-            log.Print("REGISTERING NODE", node)
+            clientIp := node.conn.RemoteAddr().String()
+            log.Print(clientIp, " connected")
             h.nodes[node] = true
-        case message := <-h.broadcastCh:
+        case nodeMessage := <-h.broadcastCh:
             for node := range h.nodes {
-                node.gossipCh <- message
+                if node.conn.RemoteAddr().String() == nodeMessage.addr {
+                    continue
+                }
+
+                node.gossipCh <- nodeMessage
             }
         }
     }

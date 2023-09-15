@@ -1,12 +1,17 @@
 package network
 
 import (
-    "log"
+    "fmt"
     "github.com/gorilla/websocket"
 )
 
+type NodeMessage struct {
+    addr string
+    message []byte
+}
+
 type Node struct {
-    gossipCh chan []byte
+    gossipCh chan NodeMessage
 
     conn *websocket.Conn
     hub *Hub
@@ -14,7 +19,7 @@ type Node struct {
 
 func NewNode(conn *websocket.Conn, hub *Hub) *Node {
     return &Node{
-        gossipCh: make(chan []byte),
+        gossipCh: make(chan NodeMessage),
 
         conn: conn,
         hub: hub,
@@ -23,23 +28,28 @@ func NewNode(conn *websocket.Conn, hub *Hub) *Node {
 
 func (n *Node) ReceiveFromHub() {
     for {
-        log.Print("RECEIVED FROM HUB")
-        message, open := <-n.gossipCh
+        nodeMessage, open := <-n.gossipCh
         if !open {
             return
         }
 
-        n.conn.WriteMessage(websocket.BinaryMessage, message)
+        message := fmt.Sprintf("%s: %s", nodeMessage.addr, string(nodeMessage.message))
+        n.conn.WriteMessage(websocket.BinaryMessage, []byte(message))
     }
 }
 
 func (n *Node) ReceiveFromClient() {
     for {
         _, payload, err := n.conn.ReadMessage()
-        log.Print("RECEIVED MESSAGE FROM CLIENT", string(payload))
         if err != nil {
-            log.Fatal("ERROR FROM RECEIVING CLIENT MESSAGE", err)
+            n.conn.Close()
+            return
         }
-        n.hub.broadcastCh <- payload
+
+        nodeMessage := NodeMessage{
+            addr: n.conn.RemoteAddr().String(),
+            message: payload,
+        }
+        n.hub.broadcastCh <- nodeMessage
     }
 }
