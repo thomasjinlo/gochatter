@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+    "fmt"
     "log"
     "net/http"
     "path/filepath"
@@ -41,8 +42,12 @@ func main() {
         defer conn.Close()
         go func() {
             for {
-                _, payload, _ := conn.ReadMessage()
-                log.Print("RECEIVED FROM HUB", string(payload))
+                _, payload, err := conn.ReadMessage()
+                if err != nil {
+                    log.Print("connection closed from server")
+                    close(closeCh)
+                }
+                fmt.Println(string(payload))
             }
         }()
 
@@ -52,12 +57,10 @@ func main() {
                 n, _ := os.Stdin.Read(buf)
                 err := conn.WriteMessage(websocket.BinaryMessage, buf[:n])
                 if err != nil {
-                    log.Fatal("ERROR WRITING TO NODE", err)
+                    close(closeCh)
                 }
             }
         }()
         <-closeCh
-    default:
-        log.Print("In default")
     }
 }
