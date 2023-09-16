@@ -13,17 +13,17 @@ func NewNetworkServer() func(http.ResponseWriter, *http.Request) {
         ReadBufferSize: 1024,
         WriteBufferSize: 1024,
     }
-    hub := NewHub()
+    server := NewServer()
 
     return func(w http.ResponseWriter, r *http.Request) {
         conn, err := upgrader.Upgrade(w, r, nil)
         if err != nil {
             log.Fatal("FAILED TO UPGRADE", err)
         }
-        node := NewNode(conn, hub)
-        hub.registerCh <- node
+        socket := NewSocket(conn, server)
+        server.registerCh <- socket
 
-        go node.ReceiveFromHub()
-        go node.ReceiveFromClient()
+        go socket.ReceiveFromServer()
+        go socket.ReceiveFromClient()
     }
 }

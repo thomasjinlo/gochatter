@@ -1,0 +1,42 @@
+package network
+
+import (
+    "log"
+)
+
+type Server struct {
+    broadcastCh chan SocketMessage
+    registerCh chan *Socket
+
+    sockets map[*Socket]bool
+}
+
+func NewServer() (server *Server) {
+    server = &Server{
+        broadcastCh: make(chan SocketMessage),
+        registerCh: make(chan *Socket),
+        sockets: make(map[*Socket]bool),
+    }
+    go server.handleMessages()
+
+    return server
+}
+
+func (s *Server) handleMessages() {
+    for {
+        select {
+        case socket := <-s.registerCh:
+            clientIp := socket.conn.RemoteAddr().String()
+            log.Print(clientIp, " connected")
+            s.sockets[socket] = true
+        case socketMessage := <-s.broadcastCh:
+            for socket := range s.sockets {
+                if socket.conn.RemoteAddr().String() == socketMessage.addr {
+                    continue
+                }
+
+                socket.gossipCh <- socketMessage
+            }
+        }
+    }
+}

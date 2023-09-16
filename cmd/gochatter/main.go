@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-    "fmt"
     "log"
     "net/http"
     "path/filepath"
@@ -12,11 +11,11 @@ import (
     "github.com/gorilla/websocket"
 
 	"github.com/thomasjinlo/gochatter/internal/network"
+	"github.com/thomasjinlo/gochatter/internal/client"
 )
 
 func main() {
     currDir, _ := os.Getwd()
-    closeCh := make(chan bool)
     switch os.Args[1] {
     case "server":
         networkHandler := network.NewNetworkServer()
@@ -35,32 +34,11 @@ func main() {
         tlsConfig := &tls.Config{
             RootCAs: certPool,
         }
-        dialer := websocket.Dialer{
+        addr := "wss://gochatter.app:443"
+        dialer := &websocket.Dialer{
             TLSClientConfig: tlsConfig,
         }
-        conn, _, _ := dialer.Dial("wss://gochatter.app:443", nil)
-        defer conn.Close()
-        go func() {
-            for {
-                _, payload, err := conn.ReadMessage()
-                if err != nil {
-                    log.Print("connection closed from server")
-                    close(closeCh)
-                }
-                fmt.Println(string(payload))
-            }
-        }()
-
-        go func() {
-            for {
-                buf := make([]byte, 1024)
-                n, _ := os.Stdin.Read(buf)
-                err := conn.WriteMessage(websocket.BinaryMessage, buf[:n])
-                if err != nil {
-                    close(closeCh)
-                }
-            }
-        }()
-        <-closeCh
+        client := client.NewClient(addr, client.Dialer(dialer))
+        client.Connect()
     }
 }
