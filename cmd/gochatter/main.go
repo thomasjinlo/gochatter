@@ -10,8 +10,9 @@ import (
     "github.com/gorilla/websocket"
     "github.com/spf13/viper"
 
-    "github.com/thomasjinlo/gochatter/internal/network"
+    "github.com/thomasjinlo/gochatter/internal/auth"
     "github.com/thomasjinlo/gochatter/internal/client"
+    "github.com/thomasjinlo/gochatter/internal/network"
 )
 
 func main() {
@@ -48,5 +49,10 @@ func main() {
             clientConf.GetString("serverAddr"),
             client.Dialer(dialer))
         client.Connect()
+    case "login":
+        authConfig := viper.Sub("auth")
+        tokenRetriever := auth.TokenRetrieverFunc(auth.RetrieveWithClientAssertion)
+        token := tokenRetriever.Retrieve(authConfig)
+        log.Print(token)
     }
 }
