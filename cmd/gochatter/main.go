@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+    "os"
     "log"
     "net/http"
     "path/filepath"
@@ -10,8 +10,8 @@ import (
 
     "github.com/gorilla/websocket"
 
-	"github.com/thomasjinlo/gochatter/internal/network"
-	"github.com/thomasjinlo/gochatter/internal/client"
+    "github.com/thomasjinlo/gochatter/internal/network"
+    "github.com/thomasjinlo/gochatter/internal/client"
 )
 
 func main() {

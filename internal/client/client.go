@@ -1,12 +1,12 @@
 package client
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
-	"os"
+    "bytes"
+    "fmt"
+    "net/http"
+    "os"
 
-	"github.com/gorilla/websocket"
+    "github.com/gorilla/websocket"
 )
 
 type Dialer interface {
