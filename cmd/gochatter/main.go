@@ -4,11 +4,11 @@ import (
     "os"
     "log"
     "net/http"
-    "path/filepath"
     "crypto/tls"
     "crypto/x509"
 
     "github.com/gorilla/websocket"
+    "github.com/spf13/viper"
 
     "github.com/thomasjinlo/gochatter/internal/network"
     "github.com/thomasjinlo/gochatter/internal/client"
@@ -16,29 +16,37 @@ import (
 
 func main() {
     currDir, _ := os.Getwd()
+    viper.SetConfigName("config")
+    viper.AddConfigPath(currDir + "/")
+    err := viper.ReadInConfig()
+    if err != nil { // Handle errors reading the config file
+        log.Fatal("fatal error config file: %w", err)
+    }
     switch os.Args[1] {
     case "server":
-        networkHandler := network.NewNetworkServer()
-        certFile := filepath.Join(currDir, ".ssh", "cfcert.pem")
-        keyFile := filepath.Join(currDir, ".ssh", "cfkey.pem")
-
-        err := http.ListenAndServeTLS(":443", certFile, keyFile, http.HandlerFunc(networkHandler))
+        serverConf := viper.Sub("server")
+        err := http.ListenAndServeTLS(
+            serverConf.GetString("port"),
+            serverConf.GetString("certFile"),
+            serverConf.GetString("keyFile"),
+            http.HandlerFunc(network.HandleNewConnection()))
         if err != nil {
             log.Fatal("HTTP Server error:", err)
         }
     case "client":
-        certFile := filepath.Join(currDir, ".ssh", "cfclient.pem")
-        cert, _ := os.ReadFile(certFile)
+        clientConf := viper.Sub("client")
+        cert, _ := os.ReadFile(clientConf.GetString("certfile"))
         certPool := x509.NewCertPool()
         certPool.AppendCertsFromPEM(cert)
         tlsConfig := &tls.Config{
             RootCAs: certPool,
         }
-        addr := "wss://gochatter.app:443"
         dialer := &websocket.Dialer{
             TLSClientConfig: tlsConfig,
         }
-        client := client.NewClient(addr, client.Dialer(dialer))
+        client := client.NewClient(
+            clientConf.GetString("serverAddr"),
+            client.Dialer(dialer))
         client.Connect()
     }
 }

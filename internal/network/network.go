@@ -8,7 +8,7 @@ import (
 )
 
 
-func NewNetworkServer() func(http.ResponseWriter, *http.Request) {
+func HandleNewConnection() func(http.ResponseWriter, *http.Request) {
     upgrader := websocket.Upgrader{
         ReadBufferSize: 1024,
         WriteBufferSize: 1024,

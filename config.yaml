@@ -1,0 +1,9 @@
+server:
+  port: ":443"
+  host: "gochatter.app"
+  certFile: ".secrets/cfcert.pem"
+  keyFile: ".secrets/cfkey.pem"
+
+client:
+  serverAddr: "wss://gochatter.app"
+  certfile: ".secrets/cfclient.pem"
