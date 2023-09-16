@@ -1,7 +1,7 @@
 package network
 
 import (
-    "log"
+    "fmt"
 )
 
 type Server struct {
@@ -27,7 +27,7 @@ func (s *Server) handleMessages() {
         select {
         case socket := <-s.registerCh:
             clientIp := socket.conn.RemoteAddr().String()
-            log.Print(clientIp, " connected")
+            fmt.Println(clientIp, "connected")
             s.sockets[socket] = true
         case socketMessage := <-s.broadcastCh:
             for socket := range s.sockets {

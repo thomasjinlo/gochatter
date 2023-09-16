@@ -23,6 +23,8 @@ type Client struct {
 
 func NewClient(addr string, dialer Dialer) *Client {
     return &Client{
+        closeCh: make(chan struct{}),
+
         addr: addr,
         dialer: dialer,
     }
@@ -32,14 +34,12 @@ func NewClient(addr string, dialer Dialer) *Client {
 func (c *Client) Connect() {
     conn, _, _ := c.dialer.Dial(c.addr, nil)
     c.conn = conn
-    closeCh := make(chan struct{})
-
-    defer conn.Close()
+    defer c.conn.Close()
 
     go c.receiveFromServer()
     go c.writeToServer()
 
-    <-closeCh
+    <-c.closeCh
 }
 
 func (c *Client) receiveFromServer() {
@@ -48,6 +48,7 @@ func (c *Client) receiveFromServer() {
         if err != nil {
             fmt.Println("connection closed from server")
             close(c.closeCh)
+            return
         }
         fmt.Println(string(payload))
     }
@@ -60,6 +61,7 @@ func (c *Client) writeToServer() {
         byteMessage := bytes.TrimRight(buf[:n], "\n")
         err := c.conn.WriteMessage(websocket.BinaryMessage, byteMessage)
         if err != nil {
+            fmt.Println("GETS IN HERE AFTER CLOSING")
             close(c.closeCh)
         }
     }

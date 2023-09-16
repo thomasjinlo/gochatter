@@ -1,6 +1,8 @@
 package network
 
 import (
+    "fmt"
+
     "github.com/gorilla/websocket"
 )
 
@@ -41,6 +43,7 @@ func (s *Socket) ReceiveFromClient() {
     for {
         _, payload, err := s.conn.ReadMessage()
         if err != nil {
+            fmt.Println(s.conn.RemoteAddr().String(), "closed connection")
             s.conn.Close()
             return
         }
