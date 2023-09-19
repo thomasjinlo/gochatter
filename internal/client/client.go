@@ -7,6 +7,8 @@ import (
     "os"
 
     "github.com/gorilla/websocket"
+
+    "github.com/thomasjinlo/gochatter/internal/auth"
 )
 
 type Dialer interface {
@@ -31,8 +33,10 @@ func NewClient(addr string, dialer Dialer) *Client {
 
 }
 
-func (c *Client) Connect() {
-    conn, _, _ := c.dialer.Dial(c.addr, nil)
+func (c *Client) Connect(token auth.JwtToken) {
+    header := http.Header{}
+    header.Set("Authorization", "Bearer "+string(token))
+    conn, _, _ := c.dialer.Dial(c.addr, header)
     c.conn = conn
     defer c.conn.Close()
 

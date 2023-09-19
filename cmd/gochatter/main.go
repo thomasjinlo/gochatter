@@ -1,18 +1,18 @@
 package main
 
 import (
-    "os"
-    "log"
-    "net/http"
-    "crypto/tls"
-    "crypto/x509"
+	"crypto/tls"
+	"crypto/x509"
+	"log"
+	"net/http"
+	"os"
 
-    "github.com/gorilla/websocket"
-    "github.com/spf13/viper"
+	"github.com/gorilla/websocket"
+	"github.com/spf13/viper"
 
-    "github.com/thomasjinlo/gochatter/internal/auth"
-    "github.com/thomasjinlo/gochatter/internal/client"
-    "github.com/thomasjinlo/gochatter/internal/network"
+	"github.com/thomasjinlo/gochatter/internal/auth"
+	"github.com/thomasjinlo/gochatter/internal/client"
+	"github.com/thomasjinlo/gochatter/internal/network"
 )
 
 func main() {
@@ -45,13 +45,16 @@ func main() {
         dialer := &websocket.Dialer{
             TLSClientConfig: tlsConfig,
         }
+        authConfig := viper.Sub("auth")
+        tokenRetriever := auth.TokenRetrieverFunc(auth.RetrieveWithClientSecret)
+        token := tokenRetriever.Retrieve(authConfig)
         client := client.NewClient(
             clientConf.GetString("serverAddr"),
             client.Dialer(dialer))
-        client.Connect()
+        client.Connect(token)
     case "login":
         authConfig := viper.Sub("auth")
-        tokenRetriever := auth.TokenRetrieverFunc(auth.RetrieveWithClientAssertion)
+        tokenRetriever := auth.TokenRetrieverFunc(auth.RetrieveWithClientSecret)
         token := tokenRetriever.Retrieve(authConfig)
         log.Print(token)
     }

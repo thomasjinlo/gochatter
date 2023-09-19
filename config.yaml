@@ -9,8 +9,11 @@ client:
   certfile: ".secrets/cfclient.pem"
 
 auth:
-  alg: "rs256"
-  aud: "https://dev-hjb4npw6t0kq7cve.auth0.com"
-  iss: "ntYMRzFwR0CFSvO6vyUn75chRnlesalx"
-  keyid: ".secrets/clientsecret"
-  privatekey: ".secrets/privatejwtkey.pem"
+  alg: "RS256"
+  authurl: "https://dev-hjb4npw6t0kq7cve.us.auth0.com/oauth/token"
+  aud: "wss://gochatter.app:443"
+  iss: "RwXtHvCrgUgMsu55RZGHHAVh4q3EV9Tj"
+  secret: ".secrets/secret"
+  keyid: ".secrets/keyid"
+  privatekey: ".secrets/pk.pem"
+  publickey: ".secrets/pk.pem.pub"
