@@ -25,12 +25,13 @@ func main() {
     }
     switch os.Args[1] {
     case "server":
+        tokenVerifier := auth.TokenVerifierFunc(auth.VerifyWithJWKS)
         serverConf := viper.Sub("server")
         err := http.ListenAndServeTLS(
             serverConf.GetString("port"),
             serverConf.GetString("certFile"),
             serverConf.GetString("keyFile"),
-            http.HandlerFunc(network.HandleNewConnection()))
+            http.HandlerFunc(network.HandleNewConnection(tokenVerifier)))
         if err != nil {
             log.Fatal("HTTP Server error:", err)
         }

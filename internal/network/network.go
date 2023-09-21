@@ -1,14 +1,24 @@
 package network
 
 import (
-    "log"
-    "net/http"
+	"log"
+	"net/http"
 
-    "github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
+
+    "github.com/thomasjinlo/gochatter/internal/auth"
 )
 
+type RSAKey struct {
+    Kty string `json:"kty"`
+    Use string `json:"use"`
+    N   string `json:"n"`
+    E   string `json:"e"`
+    Kid string `json:"kid"`
+    Alg string `json:"alg"`
+}
 
-func HandleNewConnection() func(http.ResponseWriter, *http.Request) {
+func HandleNewConnection(tokenVerifier auth.TokenVerifier) func(http.ResponseWriter, *http.Request) {
     upgrader := websocket.Upgrader{
         ReadBufferSize: 1024,
         WriteBufferSize: 1024,
@@ -16,6 +26,11 @@ func HandleNewConnection() func(http.ResponseWriter, *http.Request) {
     server := NewServer()
 
     return func(w http.ResponseWriter, r *http.Request) {
+        err := tokenVerifier.Verify(r)
+        if err != nil {
+            log.Fatal("Failed to verify token")
+        }
+
         conn, err := upgrader.Upgrade(w, r, nil)
         if err != nil {
             log.Fatal("FAILED TO UPGRADE", err)

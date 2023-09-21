@@ -35,7 +35,7 @@ func NewClient(addr string, dialer Dialer) *Client {
 
 func (c *Client) Connect(token auth.JwtToken) {
     header := http.Header{}
-    header.Set("Authorization", "Bearer "+string(token))
+    header.Set("Authorization", token.Value())
     conn, _, _ := c.dialer.Dial(c.addr, header)
     c.conn = conn
     defer c.conn.Close()
