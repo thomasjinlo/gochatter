@@ -13,7 +13,7 @@ auth:
   authurl: "https://dev-hjb4npw6t0kq7cve.us.auth0.com/oauth/token"
   aud: "wss://gochatter.app:443"
   iss: "RwXtHvCrgUgMsu55RZGHHAVh4q3EV9Tj"
-  secret: ".secrets/secret"
+  clientSecretPath: ".secrets/clientsecret"
   keyid: ".secrets/keyid"
   privatekey: ".secrets/pk.pem"
   publickey: ".secrets/pk.pem.pub"

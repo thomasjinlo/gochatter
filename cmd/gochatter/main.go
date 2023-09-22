@@ -47,16 +47,13 @@ func main() {
             TLSClientConfig: tlsConfig,
         }
         authConfig := viper.Sub("auth")
-        tokenRetriever := auth.TokenRetrieverFunc(auth.RetrieveWithClientSecret)
-        token := tokenRetriever.Retrieve(authConfig)
+        retrieveWithClientSecret := auth.RetrieveWithClientSecret(authConfig)
+        tokenRetriever := auth.TokenRetrieverFunc(retrieveWithClientSecret)
         client := client.NewClient(
             clientConf.GetString("serverAddr"),
-            client.Dialer(dialer))
-        client.Connect(token)
-    case "login":
-        authConfig := viper.Sub("auth")
-        tokenRetriever := auth.TokenRetrieverFunc(auth.RetrieveWithClientSecret)
-        token := tokenRetriever.Retrieve(authConfig)
-        log.Print(token)
+            client.Dialer(dialer),
+            tokenRetriever,
+        )
+        client.Connect()
     }
 }

@@ -16,33 +16,40 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type JwtToken struct {
-    expiry float64
-    tokenType string
-    accessToken string
+type TokenRetrieveError struct {
+    err error
+    Message string
 }
 
-func (t *JwtToken) Value() string {
-    return t.accessToken
+func (e TokenRetrieveError) Error() string {
+    return e.Message + " " + e.err.Error()
 }
 
 type TokenRetriever interface {
-    Retrieve(config *viper.Viper) JwtToken
+    Retrieve() (string, error)
 }
 
-type TokenRetrieverFunc func(config *viper.Viper) JwtToken
+type TokenRetrieverFunc func() (string, error)
 
-func (f TokenRetrieverFunc) Retrieve(config *viper.Viper) JwtToken {
-    return f(config)
+func (f TokenRetrieverFunc) Retrieve() (string, error) {
+    return f()
 }
 
-func RetrieveWithClientSecret(config *viper.Viper) JwtToken {
+func RetrieveWithClientSecret(config *viper.Viper) func() (string, error) {
+    return func() (string, error) { return retrieveWithClientSecret(config) }
+}
+
+func retrieveWithClientSecret(config *viper.Viper) (string, error) {
     authUrl := config.GetString("authurl")
     contentType := "application/x-www-form-urlencoded"
 
-    secret, err := os.ReadFile(config.GetString("secret"))
+    secret, err := os.ReadFile(config.GetString("clientSecretPath"))
     if err != nil {
-        log.Fatal("Error reading secret")
+        err := TokenRetrieveError{
+            Message: "Error reading secret",
+            err: err,
+        }
+        return "", err
     }
 
     payload := url.Values{}
@@ -54,22 +61,27 @@ func RetrieveWithClientSecret(config *viper.Viper) JwtToken {
 
     res, err := http.Post(authUrl, contentType, payloadReader)
     if err != nil {
-        log.Fatal("Error retrieving access token", err)
+        err := TokenRetrieveError{
+            Message: "Error retrieving access token",
+            err: err,
+        }
+        return "", err
     }
 
 	defer res.Body.Close()
     var body map[string]interface{}
     bytes, _ := io.ReadAll(res.Body)
+
     err = json.Unmarshal(bytes, &body) 
     if err != nil {
-        log.Fatal("Error unmarshalling", err)
+        err := TokenRetrieveError{
+            Message: "Error parsing response body",
+            err: err,
+        }
+        return "", err
     }
 
-    return JwtToken{
-        accessToken: body["access_token"].(string),
-        tokenType: body["token_type"].(string),
-        expiry: body["expires_in"].(float64),
-    }
+    return body["access_token"].(string), nil
 }
 
 type TokenVerifier interface {

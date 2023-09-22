@@ -4,6 +4,7 @@ import (
     "bytes"
     "fmt"
     "net/http"
+    "log"
     "os"
 
     "github.com/gorilla/websocket"
@@ -21,21 +22,27 @@ type Client struct {
     conn *websocket.Conn
     addr string
     dialer Dialer
+    tokenRetriever auth.TokenRetriever
 }
 
-func NewClient(addr string, dialer Dialer) *Client {
+func NewClient(addr string, dialer Dialer, tokenRetriever auth.TokenRetriever) *Client {
     return &Client{
         closeCh: make(chan struct{}),
 
         addr: addr,
         dialer: dialer,
+        tokenRetriever: tokenRetriever,
     }
 
 }
 
-func (c *Client) Connect(token auth.JwtToken) {
+func (c *Client) Connect() {
+    token, err := c.tokenRetriever.Retrieve()
+    if err != nil {
+        log.Fatal("Error retrieving token ", err)
+    }
     header := http.Header{}
-    header.Set("Authorization", token.Value())
+    header.Set("Authorization", token)
     conn, _, _ := c.dialer.Dial(c.addr, header)
     c.conn = conn
     defer c.conn.Close()
