@@ -20,16 +20,16 @@ type Client struct {
     closeCh chan struct{}
 
     conn *websocket.Conn
-    addr string
+    serverDomainName string
     dialer Dialer
     tokenRetriever auth.TokenRetriever
 }
 
-func NewClient(addr string, dialer Dialer, tokenRetriever auth.TokenRetriever) *Client {
+func NewClient(serverDomainName string, dialer Dialer, tokenRetriever auth.TokenRetriever) *Client {
     return &Client{
         closeCh: make(chan struct{}),
 
-        addr: addr,
+        serverDomainName: serverDomainName,
         dialer: dialer,
         tokenRetriever: tokenRetriever,
     }
@@ -43,7 +43,9 @@ func (c *Client) Connect() {
     }
     header := http.Header{}
     header.Set("Authorization", token)
-    conn, _, _ := c.dialer.Dial(c.addr, header)
+    scheme := "wss"
+    addr := scheme + "://" + c.serverDomainName
+    conn, _, _ := c.dialer.Dial(addr, header)
     c.conn = conn
     defer c.conn.Close()
 

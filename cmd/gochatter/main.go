@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"log"
 	"net/http"
 	"os"
@@ -23,10 +22,12 @@ func main() {
     if err != nil { // Handle errors reading the config file
         log.Fatal("fatal error config file: %w", err)
     }
+
+    serverConf := viper.Sub("server")
+
     switch os.Args[1] {
     case "server":
         tokenVerifier := auth.TokenVerifierFunc(auth.VerifyWithJWKS)
-        serverConf := viper.Sub("server")
         err := http.ListenAndServeTLS(
             serverConf.GetString("port"),
             serverConf.GetString("certFile"),
@@ -36,22 +37,24 @@ func main() {
             log.Fatal("HTTP Server error:", err)
         }
     case "client":
-        clientConf := viper.Sub("client")
-        cert, _ := os.ReadFile(clientConf.GetString("certfile"))
-        certPool := x509.NewCertPool()
-        certPool.AppendCertsFromPEM(cert)
         tlsConfig := &tls.Config{
-            RootCAs: certPool,
+            CipherSuites: []uint16{
+                tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+                tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+                tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+                tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+            },
         }
-        dialer := &websocket.Dialer{
-            TLSClientConfig: tlsConfig,
-        }
+        dialer := &websocket.Dialer{TLSClientConfig: tlsConfig}
+
         authConfig := viper.Sub("auth")
         retrieveWithClientSecret := auth.RetrieveWithClientSecret(authConfig)
         tokenRetriever := auth.TokenRetrieverFunc(retrieveWithClientSecret)
         client := client.NewClient(
-            clientConf.GetString("serverAddr"),
-            client.Dialer(dialer),
+            serverConf.GetString("domain_name"),
+            dialer,
             tokenRetriever,
         )
         client.Connect()
