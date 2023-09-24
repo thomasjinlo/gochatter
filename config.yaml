@@ -1,15 +1,13 @@
 server:
   port: ":443"
   domain_name: "gochatter.app"
-  certFile: ".secrets/cfcert.pem"
-  keyFile: ".secrets/cfkey.pem"
+  certFile: ".secrets/cert.pem"
+  keyFile: ".secrets/key.pem"
 
-auth:
-  alg: "RS256"
-  authurl: "https://dev-hjb4npw6t0kq7cve.us.auth0.com/oauth/token"
-  aud: "wss://gochatter.app:443"
-  iss: "RwXtHvCrgUgMsu55RZGHHAVh4q3EV9Tj"
-  clientSecretPath: ".secrets/clientsecret"
-  keyid: ".secrets/keyid"
-  privatekey: ".secrets/pk.pem"
-  publickey: ".secrets/pk.pem.pub"
+oidc:
+  auth0:
+    alg: "RS256"
+    aud: "wss://gochatter.app:443"
+    iss: "RwXtHvCrgUgMsu55RZGHHAVh4q3EV9Tj"
+    domain: "dev-hjb4npw6t0kq7cve.us.auth0.com"
+    secretpath: ".secrets/clientsecret"

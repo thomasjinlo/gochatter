@@ -24,10 +24,13 @@ func main() {
     }
 
     serverConf := viper.Sub("server")
+    oidcConfig := viper.Sub("oidc")
+    auth0Config := oidcConfig.Sub("auth0")
+    auth0Provider := auth.NewAuth0Provider(auth0Config)
 
     switch os.Args[1] {
     case "server":
-        tokenVerifier := auth.TokenVerifierFunc(auth.VerifyWithJWKS)
+        tokenVerifier := auth.TokenVerifierFunc(auth0Provider.Verify)
         err := http.ListenAndServeTLS(
             serverConf.GetString("port"),
             serverConf.GetString("certFile"),
@@ -49,9 +52,7 @@ func main() {
         }
         dialer := &websocket.Dialer{TLSClientConfig: tlsConfig}
 
-        authConfig := viper.Sub("auth")
-        retrieveWithClientSecret := auth.RetrieveWithClientSecret(authConfig)
-        tokenRetriever := auth.TokenRetrieverFunc(retrieveWithClientSecret)
+        tokenRetriever := auth.TokenRetrieverFunc(auth0Provider.RetrieveWithClientSecret)
         client := client.NewClient(
             serverConf.GetString("domain_name"),
             dialer,
