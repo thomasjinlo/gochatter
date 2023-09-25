@@ -7,21 +7,23 @@ import (
 )
 
 type SocketMessage struct {
-	addr    string
+	displayName string
 	message []byte
 }
 
 type Socket struct {
 	gossipCh chan SocketMessage
 
+    displayName string
 	conn   *websocket.Conn
 	server *Server
 }
 
-func NewSocket(conn *websocket.Conn, server *Server) *Socket {
+func NewSocket(displayName string, conn *websocket.Conn, server *Server) *Socket {
 	return &Socket{
 		gossipCh: make(chan SocketMessage),
 
+        displayName: displayName,
 		conn:   conn,
 		server: server,
 	}
@@ -33,7 +35,7 @@ func (s *Socket) ReceiveFromServer() {
 		if !open {
 			return
 		}
-		senderAddr := []byte(socketMessage.addr + ": ")
+		senderAddr := []byte(socketMessage.displayName + ": ")
 		message := append(senderAddr, socketMessage.message...)
 		s.conn.WriteMessage(websocket.BinaryMessage, message)
 	}
@@ -48,7 +50,7 @@ func (s *Socket) ReceiveFromClient() {
 			return
 		}
 		socketMessage := SocketMessage{
-			addr:    s.conn.RemoteAddr().String(),
+			displayName: s.displayName,
 			message: payload,
 		}
 		s.server.broadcastCh <- socketMessage

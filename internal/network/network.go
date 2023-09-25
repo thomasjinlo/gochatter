@@ -28,7 +28,9 @@ func HandleNewConnection(tokenVerifier auth.TokenVerifier) func(http.ResponseWri
             fmt.Println("FAILED TO UPGRADE", err)
             return
         }
-        socket := NewSocket(conn, server)
+
+        displayName := r.Header.Get("Display")
+        socket := NewSocket(displayName, conn, server)
         server.registerCh <- socket
 
         go socket.ReceiveFromServer()

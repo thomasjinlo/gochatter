@@ -31,7 +31,7 @@ func (s *Server) handleMessages() {
             s.sockets[socket] = true
         case socketMessage := <-s.broadcastCh:
             for socket := range s.sockets {
-                if socket.conn.RemoteAddr().String() == socketMessage.addr {
+                if socket.displayName == socketMessage.displayName {
                     continue
                 }
 

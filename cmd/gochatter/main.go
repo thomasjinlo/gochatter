@@ -12,6 +12,7 @@ import (
 	"github.com/thomasjinlo/gochatter/internal/auth"
 	"github.com/thomasjinlo/gochatter/internal/client"
 	"github.com/thomasjinlo/gochatter/internal/network"
+	"github.com/thomasjinlo/gochatter/internal/prompt"
 )
 
 func main() {
@@ -40,20 +41,25 @@ func main() {
             log.Fatal("HTTP Server error:", err)
         }
     case "client":
+        displayName, err := prompt.DisplayName()
+        if err != nil {
+            log.Fatal("Failed to get displayName", err)
+        }
+
         tlsConfig := &tls.Config{
             CipherSuites: []uint16{
                 tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
                 tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
                 tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-                tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-                tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
                 tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+                tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
             },
         }
         dialer := &websocket.Dialer{TLSClientConfig: tlsConfig}
-
         tokenRetriever := auth.TokenRetrieverFunc(auth0Provider.RetrieveWithClientSecret)
         client := client.NewClient(
+            displayName,
             serverConf.GetString("domain_name"),
             dialer,
             tokenRetriever,
