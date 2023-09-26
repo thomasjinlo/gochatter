@@ -2,20 +2,18 @@
 Simple chatting service written in Go
 
 ## Requirements
-Create a `.ssh` under root directory (`gochatter/`). Create two private key and
-cert. Requires `openssl` for macos.
+For now you'll need to retrieve a client secret from the creator. Once you have
+the secret string, run the commands below.
 ```
 cd gochatter
-mkdir .ssh
-
-openssl genpkey -algorithm RSA -out gochatter.key
-openssl req -new -x509 -sha256 -key gochatter.key -out gochatter.crt -days 3650
+mkdir .secrets
+echo "secret" > .secrets/clientsecret
 ```
 
 ## Installation
 ```
 cd gochatter
-go install ./cmd/gochatter
+make
 ```
 
 ## Uses
