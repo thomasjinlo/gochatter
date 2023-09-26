@@ -49,6 +49,7 @@ func (s *Socket) ReceiveFromClient() {
 			s.conn.Close()
 			return
 		}
+
 		socketMessage := SocketMessage{
 			displayName: s.displayName,
 			message: payload,

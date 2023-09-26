@@ -13,6 +13,7 @@ import (
 	"github.com/thomasjinlo/gochatter/internal/client"
 	"github.com/thomasjinlo/gochatter/internal/network"
 	"github.com/thomasjinlo/gochatter/internal/prompt"
+	"github.com/thomasjinlo/gochatter/internal/tui"
 )
 
 func main() {
@@ -64,6 +65,6 @@ func main() {
             dialer,
             tokenRetriever,
         )
-        client.Connect()
+        tui.Run(client)
     }
 }
