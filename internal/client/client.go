@@ -1,11 +1,11 @@
 package client
 
 import (
-    "bytes"
+    //"bytes"
     "fmt"
     "net/http"
     "log"
-    "os"
+    //"os"
 
     "github.com/gorilla/websocket"
 
@@ -18,6 +18,8 @@ type Dialer interface {
 
 type Client struct {
     closeCh chan struct{}
+    ToTuiCh chan string
+    FromTuiCh chan string
 
     conn *websocket.Conn
     displayName string
@@ -29,6 +31,8 @@ type Client struct {
 func NewClient(displayName, serverDomainName string, dialer Dialer, tokenRetriever auth.TokenRetriever) *Client {
     return &Client{
         closeCh: make(chan struct{}),
+        ToTuiCh: make(chan string),
+        FromTuiCh: make(chan string),
 
         displayName: displayName,
         serverDomainName: serverDomainName,
@@ -66,16 +70,18 @@ func (c *Client) receiveFromServer() {
             close(c.closeCh)
             return
         }
-        fmt.Println(string(payload))
+        c.ToTuiCh <- string(payload)
+        //fmt.Println(string(payload))
     }
 }
 
 func (c *Client) writeToServer() {
     for {
-        buf := make([]byte, 1024)
-        n, _ := os.Stdin.Read(buf)
-        byteMessage := bytes.TrimRight(buf[:n], "\n")
-        err := c.conn.WriteMessage(websocket.BinaryMessage, byteMessage)
+        //buf := make([]byte, 1024)
+        //n, _ := os.Stdin.Read(buf)
+        //byteMessage := bytes.TrimRight(buf[:n], "\n")
+        message := <-c.FromTuiCh
+        err := c.conn.WriteMessage(websocket.BinaryMessage, []byte(message))
         if err != nil {
             close(c.closeCh)
         }
