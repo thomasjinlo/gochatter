@@ -17,7 +17,7 @@ type Dialer interface {
 }
 
 type Client struct {
-    closeCh chan struct{}
+    CloseCh chan struct{}
     ToTuiCh chan string
     FromTuiCh chan string
 
@@ -30,7 +30,7 @@ type Client struct {
 
 func NewClient(displayName, serverDomainName string, dialer Dialer, tokenRetriever auth.TokenRetriever) *Client {
     return &Client{
-        closeCh: make(chan struct{}),
+        CloseCh: make(chan struct{}),
         ToTuiCh: make(chan string),
         FromTuiCh: make(chan string),
 
@@ -59,7 +59,7 @@ func (c *Client) Connect() {
     go c.receiveFromServer()
     go c.writeToServer()
 
-    <-c.closeCh
+    <-c.CloseCh
 }
 
 func (c *Client) receiveFromServer() {
@@ -67,7 +67,7 @@ func (c *Client) receiveFromServer() {
         _, payload, err := c.conn.ReadMessage()
         if err != nil {
             fmt.Println("connection closed from server")
-            close(c.closeCh)
+            close(c.CloseCh)
             return
         }
         c.ToTuiCh <- string(payload)
@@ -83,7 +83,7 @@ func (c *Client) writeToServer() {
         message := <-c.FromTuiCh
         err := c.conn.WriteMessage(websocket.BinaryMessage, []byte(message))
         if err != nil {
-            close(c.closeCh)
+            close(c.CloseCh)
         }
     }
 }

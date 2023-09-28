@@ -17,6 +17,10 @@ func TviewRender(client *client.Client) {
 
     go receiveFromServer(client, textView)
     go client.Connect()
+    go func() {
+        <-client.CloseCh
+        app.Stop()
+    }()
 
     inputView.SetDoneFunc(func(key tcell.Key) {
         switch key {
