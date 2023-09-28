@@ -65,6 +65,7 @@ func main() {
             dialer,
             tokenRetriever,
         )
-        tui.Run(client)
+        renderer := tui.RendererFunc(tui.TviewRender)
+        renderer.Render(client)
     }
 }
