@@ -11,7 +11,7 @@ import (
 
 	"github.com/thomasjinlo/gochatter/internal/auth"
 	"github.com/thomasjinlo/gochatter/internal/client"
-	"github.com/thomasjinlo/gochatter/internal/network"
+	"github.com/thomasjinlo/gochatter/internal/server"
 	"github.com/thomasjinlo/gochatter/internal/prompt"
 	"github.com/thomasjinlo/gochatter/internal/tui"
 )
@@ -37,7 +37,7 @@ func main() {
             serverConf.GetString("port"),
             serverConf.GetString("certFile"),
             serverConf.GetString("keyFile"),
-            http.HandlerFunc(network.HandleNewConnection(tokenVerifier)))
+            http.HandlerFunc(server.HandleNewConnection(tokenVerifier)))
         if err != nil {
             log.Fatal("HTTP Server error:", err)
         }
