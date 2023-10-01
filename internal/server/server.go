@@ -1,42 +1,54 @@
 package server
 
 import (
-    "fmt"
+	"fmt"
+	"net/http"
+
+	"github.com/gorilla/websocket"
 )
 
-type Server struct {
-    broadcastCh chan SocketMessage
-    registerCh chan *Socket
-
-    sockets map[*Socket]bool
+type Server interface {
+    HandleNewConnection(c *websocket.Conn, r *http.Request)
+    Broadcast(socket Socket, message []byte)
 }
 
-func NewServer() (server *Server) {
-    server = &Server{
-        broadcastCh: make(chan SocketMessage),
-        registerCh: make(chan *Socket),
-        sockets: make(map[*Socket]bool),
+type SimpleServer struct {
+    socketsCh chan Socket
+
+    sockets map[Socket]bool
+}
+
+func (s *SimpleServer) HandleNewConnection(c *websocket.Conn, r *http.Request) {
+    displayName := r.Header.Get("Display")
+    socket := NewSimpleSocket(displayName, c, s)
+    s.socketsCh <- socket
+}
+
+func NewSimpleServer() *SimpleServer {
+    s := &SimpleServer{
+        socketsCh: make(chan Socket),
+        sockets: make(map[Socket]bool),
     }
-    go server.handleMessages()
+    go s.handleMessages()
 
-    return server
+    return s
 }
 
-func (s *Server) handleMessages() {
+func (s *SimpleServer) Broadcast(sender Socket, message []byte) {
+    for socket := range s.sockets {
+        if socket.Identifier() == sender.Identifier() {
+            continue
+        }
+        socket.SendMessage(sender, message)
+    }
+}
+
+func (s *SimpleServer) handleMessages() {
     for {
         select {
-        case socket := <-s.registerCh:
-            clientIp := socket.conn.RemoteAddr().String()
-            fmt.Println(clientIp, "connected")
+        case socket := <-s.socketsCh:
+            fmt.Println(socket.Addr(), "connected")
             s.sockets[socket] = true
-        case socketMessage := <-s.broadcastCh:
-            for socket := range s.sockets {
-                if socket.displayName == socketMessage.displayName {
-                    continue
-                }
-
-                socket.gossipCh <- socketMessage
-            }
         }
     }
 }

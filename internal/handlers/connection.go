@@ -1,4 +1,4 @@
-package server
+package handlers
 
 import (
 	"fmt"
@@ -7,14 +7,14 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/thomasjinlo/gochatter/internal/auth"
+	"github.com/thomasjinlo/gochatter/internal/server"
 )
 
-func HandleNewConnection(tokenVerifier auth.TokenVerifier) func(http.ResponseWriter, *http.Request) {
+func HandleNewConnection(tokenVerifier auth.TokenVerifier, s server.Server) func(http.ResponseWriter, *http.Request) {
     upgrader := websocket.Upgrader{
         ReadBufferSize: 1024,
         WriteBufferSize: 1024,
     }
-    server := NewServer()
 
     return func(w http.ResponseWriter, r *http.Request) {
         err := tokenVerifier.Verify(r)
@@ -29,11 +29,6 @@ func HandleNewConnection(tokenVerifier auth.TokenVerifier) func(http.ResponseWri
             return
         }
 
-        displayName := r.Header.Get("Display")
-        socket := NewSocket(displayName, conn, server)
-        server.registerCh <- socket
-
-        go socket.ReceiveFromServer()
-        go socket.ReceiveFromClient()
+        s.HandleNewConnection(conn, r)
     }
 }

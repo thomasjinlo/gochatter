@@ -6,54 +6,54 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type SocketMessage struct {
-	displayName string
-	message []byte
+type Socket interface {
+    Addr() string
+    Identifier() string
+    SendMessage(sender Socket, message []byte)
 }
 
-type Socket struct {
-	gossipCh chan SocketMessage
-
+type SimpleSocket struct {
     displayName string
 	conn   *websocket.Conn
-	server *Server
+	server Server
 }
 
-func NewSocket(displayName string, conn *websocket.Conn, server *Server) *Socket {
-	return &Socket{
-		gossipCh: make(chan SocketMessage),
-
+func NewSimpleSocket(displayName string, conn *websocket.Conn, server Server) *SimpleSocket {
+    s := &SimpleSocket{
         displayName: displayName,
 		conn:   conn,
 		server: server,
 	}
+
+    go s.receiveFromClient()
+
+    return s
 }
 
-func (s *Socket) ReceiveFromServer() {
-	for {
-		socketMessage, open := <-s.gossipCh
-		if !open {
-			return
-		}
-		senderAddr := []byte(socketMessage.displayName + ": ")
-		message := append(senderAddr, socketMessage.message...)
-		s.conn.WriteMessage(websocket.BinaryMessage, message)
-	}
+func (s *SimpleSocket) Addr() string {
+    return s.conn.RemoteAddr().String()
 }
 
-func (s *Socket) ReceiveFromClient() {
+func (s *SimpleSocket) Identifier() string {
+    return s.displayName
+}
+
+func (s *SimpleSocket) SendMessage(sender Socket, message []byte) {
+    senderAddr := []byte(sender.Identifier() + ": ")
+    message = append(senderAddr, message...)
+    s.conn.WriteMessage(websocket.BinaryMessage, message)
+}
+
+
+func (s *SimpleSocket) receiveFromClient() {
 	for {
-		_, payload, err := s.conn.ReadMessage()
+		_, message, err := s.conn.ReadMessage()
 		if err != nil {
 			fmt.Println(s.conn.RemoteAddr().String(), "closed connection")
 			s.conn.Close()
 			return
 		}
 
-		socketMessage := SocketMessage{
-			displayName: s.displayName,
-			message: payload,
-		}
-		s.server.broadcastCh <- socketMessage
+		s.server.Broadcast(s, message)
 	}
 }
