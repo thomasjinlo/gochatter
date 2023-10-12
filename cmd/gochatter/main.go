@@ -11,8 +11,9 @@ import (
 
 	"github.com/thomasjinlo/gochatter/internal/auth"
 	"github.com/thomasjinlo/gochatter/internal/client"
-	"github.com/thomasjinlo/gochatter/internal/network"
+	"github.com/thomasjinlo/gochatter/internal/handlers"
 	"github.com/thomasjinlo/gochatter/internal/prompt"
+	"github.com/thomasjinlo/gochatter/internal/server"
 	"github.com/thomasjinlo/gochatter/internal/tui"
 )
 
@@ -33,11 +34,14 @@ func main() {
     switch os.Args[1] {
     case "server":
         tokenVerifier := auth.TokenVerifierFunc(auth0Provider.Verify)
+        s := server.NewSimpleServer()
+        newConnectionHandler := handlers.HandleNewConnection(tokenVerifier, s)
+
         err := http.ListenAndServeTLS(
             serverConf.GetString("port"),
             serverConf.GetString("certFile"),
             serverConf.GetString("keyFile"),
-            http.HandlerFunc(network.HandleNewConnection(tokenVerifier)))
+            http.HandlerFunc(newConnectionHandler))
         if err != nil {
             log.Fatal("HTTP Server error:", err)
         }
