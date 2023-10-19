@@ -60,7 +60,7 @@ func (p Auth0Provider) RetrieveWithClientSecret() (string, error) {
         return "", err
     }
 
-	defer res.Body.Close()
+    defer res.Body.Close()
     var body map[string]interface{}
     bytes, _ := io.ReadAll(res.Body)
 

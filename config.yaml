@@ -1,5 +1,5 @@
 server:
-  port: ":443"
+  port: ":8443"
   domain_name: "gochatter.app"
   certFile: ".secrets/cert.pem"
   keyFile: ".secrets/key.pem"
