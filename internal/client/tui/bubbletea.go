@@ -2,120 +2,116 @@ package tui
 
 import (
 	"fmt"
-	"log"
+	"io"
+	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
 	"github.com/thomasjinlo/gochatter/internal/client"
 )
 
-func BubbleteaRender(client *client.Client) {
-    model := initialModel(client)
-	p := tea.NewProgram(model)
-    go updateModelFromServerMessages(p, client)
+// init - create channel items
+// init - websocket connection
+// init - receive from web server
 
-    go client.Connect()
-	if _, err := p.Run(); err != nil {
-		log.Fatal(err)
-	}
-}
+// update - channel click
+// update - msg send
 
-type (
-	errMsg error
+// view -
+
+var (
+	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
-type model struct {
-    client *client.Client
-	viewport    viewport.Model
-	textinput    textinput.Model
-	senderStyle lipgloss.Style
-	messages    []string
-	err         error
-}
+type channelItem string
 
-type serverMessage string
+func (i channelItem) FilterValue() string { return "" }
 
-func updateModelFromServerMessages(p *tea.Program, c *client.Client) {
-    for {
-        message := <-c.ToTuiCh
-        p.Send(serverMessage(message))
-    }
-}
+type itemDelegate struct{}
 
-func initialModel(client *client.Client) model {
-	ta := textinput.New()
-	ta.Focus()
-
-	ta.Prompt = "┃ "
-	ta.CharLimit = 280
-
-	// Remove cursor line styling
-    ta.PromptStyle = lipgloss.NewStyle()
-
-	vp := viewport.New(30, 5)
-	vp.SetContent(`Welcome to the chat room!
-Type a message and press Enter to send.`)
-
-	return model{
-        client: client,
-		textinput:    ta,
-		messages:    []string{},
-		viewport:    vp,
-		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
-		err:         nil,
+func (d itemDelegate) Height() int { return 1 }
+func (d itemDelegate) Spacing() int { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(item)
+	if !ok {
+		return
 	}
-}
 
-func (m model) Init() tea.Cmd {
-    return textinput.Blink
-}
+	str := fmt.Sprintf("%d. %s", index+1, i)
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		tiCmd tea.Cmd
-		vpCmd tea.Cmd
-	)
-
-	m.textinput, tiCmd = m.textinput.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			fmt.Println(m.textinput.Value())
-			return m, tea.Quit
-		case tea.KeyEnter:
-            m.client.FromTuiCh <- m.textinput.Value()
-			m.messages = append(m.messages, m.senderStyle.Render("You: ")+m.textinput.Value())
-			m.viewport.SetContent(strings.Join(m.messages, "\n"))
-			m.textinput.Reset()
-			m.viewport.GotoBottom()
+	fn := itemStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return selectedItemStyle.Render("> " + strings.Join(s, " "))
 		}
-
-    case serverMessage:
-        m.messages = append(m.messages, string(msg))
-        m.viewport.SetContent(strings.Join(m.messages, "\n"))
-        m.viewport.GotoBottom()
-
-
-	// We handle errors just like any other message
-	case errMsg:
-		m.err = msg
-		return m, nil
 	}
 
-	return m, tea.Batch(tiCmd, vpCmd)
+	fmt.Fprint(w, fn(str))
 }
 
-func (m model) View() string {
-	return fmt.Sprintf(
-		"%s\n\n%s",
-		m.viewport.View(),
-		m.textinput.View(),
-	) + "\n\n"
+func BubbleTeaRender(c *client.Client) {
+	var channelItems []list.Item
+
+	channelSocket := c.Connect()
+	for _, channel := range c.GetChannels() {
+		channelSocket.JoinChannel(channel.Id, c.DisplayName)
+		channelItems = append(channelItems, channelItem(channel.Name))
+	}
+
+
+	channels := list.New([]list.Item{channelItem("hello")}, list.DefaultDelegate{}, 50, 25)
+	chatview := viewport.New(30, 5)
+	textinput := textinput.New()
+
+	m := Model{channels: channels, textinput: textinput, chatview: chatview}
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
+	}
+}
+
+type Model struct {
+	channels list.Model
+	chatview viewport.Model
+	textinput textinput.Model
+}
+
+
+func (m Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.channels.SetWidth(msg.Width)
+		return m, nil
+
+	case tea.KeyMsg:
+		switch keypress := msg.String(); keypress {
+		case "ctrl+c":
+			return m, tea.Quit
+
+		case "enter":
+			return m, tea.Quit
+		}
+	}
+
+	var cmd tea.Cmd
+	m.channels, cmd = m.channels.Update(msg)
+	return m, cmd
+}
+
+func (m Model) View() string {
+	return m.channels.View()
 }

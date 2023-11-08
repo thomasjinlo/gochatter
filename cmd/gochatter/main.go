@@ -9,11 +9,12 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
 
+	"github.com/thomasjinlo/gochatter/internal/api"
 	"github.com/thomasjinlo/gochatter/internal/auth"
 	"github.com/thomasjinlo/gochatter/internal/client"
-	//"github.com/thomasjinlo/gochatter/internal/handlers"
+	ws "github.com/thomasjinlo/gochatter/internal/websocket"
+
 	"github.com/thomasjinlo/gochatter/internal/client/prompt"
-	"github.com/thomasjinlo/gochatter/internal/server"
 	"github.com/thomasjinlo/gochatter/internal/client/tui"
 )
 
@@ -32,10 +33,10 @@ func main() {
     auth0Provider := auth.NewAuth0Provider(auth0Config)
 
     switch os.Args[1] {
-    case "server":
+    case "api":
         //tokenVerifier := auth.TokenVerifierFunc(auth0Provider.Verify)
 
-        mux := server.SetupRoutes()
+        mux := api.SetupRoutes()
         err := http.ListenAndServeTLS(
             serverConf.GetString("port"),
             serverConf.GetString("certFile"),
@@ -44,7 +45,17 @@ func main() {
         if err != nil {
             log.Fatal("HTTP Server error:", err)
         }
-
+    case "websocket":
+        log.Println("RUNNING WS SERVER")
+        mux := ws.SetupRoutes()
+        err := http.ListenAndServeTLS(
+            ":443",
+            serverConf.GetString("certFile"),
+            serverConf.GetString("keyFile"),
+            mux)
+        if err != nil {
+            log.Fatal("HTTP Server error:", err)
+        }
     case "client":
         displayName, err := prompt.DisplayName()
         if err != nil {
@@ -69,7 +80,10 @@ func main() {
             dialer,
             tokenRetriever,
         )
-        renderer := tui.RendererFunc(tui.TviewRender)
+        //renderer := tui.RendererFunc(tui.TviewRender)
+        renderer := tui.RendererFunc(tui.BubbleTeaRender)
         renderer.Render(client)
+    case "test-client":
+        client.Connect()
     }
 }
