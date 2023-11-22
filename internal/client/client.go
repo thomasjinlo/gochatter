@@ -124,7 +124,6 @@ func (c *Client) GetChannels() []*Channel {
         }
         channels = append(channels, channel)
     }
-    log.Println("CHANNELS", channels)
     return channels
 }
 

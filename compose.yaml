@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: ["gochatter", "api"]
+    depends_on:
+      - nats-server
+    environment:
+      - NATS_SERVER=nats-server
+    ports:
+      - 8443:8443
+
+  websocket:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: ["gochatter", "websocket"]
+    depends_on:
+      - nats-server
+    environment:
+      - NATS_SERVER=nats-server
+    ports:
+      - 443:443
+
+  nats-server:
+    image: synadia/nats-server:nightly
+    ports:
+      - 4222:4222
+      - 6222:6222
+      - 8222:8222
